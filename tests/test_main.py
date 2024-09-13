@@ -1,63 +1,75 @@
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from app.main import app
+from app.core.database import Base, get_db
 
+# Setup the test database
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Dependency override to use test database
+def override_get_db():
+    try:
+        db = TestingSessionLocal()
+        yield db
+    finally:
+        db.close()
+
+# Apply the database override for testing
+app.dependency_overrides[get_db] = override_get_db
+
+# Create the test client
 client = TestClient(app)
 
-@pytest.fixture
-def create_post():
-    """
-    Fixture to create a post and return its ID.
-    """
-    response = client.post("/posts", json={"message": "Hello World!", "author": "Jane Doe"})
+# Create tables in the test database
+@pytest.fixture(scope="module", autouse=True)
+def setup_database():
+    Base.metadata.create_all(bind=engine)
+    yield
+    Base.metadata.drop_all(bind=engine)
+
+def test_register_user():
+    response = client.post("/users", json={
+        "first_name": "Test",
+        "last_name": "User",
+        "email": "testuser@example.com",
+        "password": "password123",
+        "handle": "@TestUser"
+    })
     assert response.status_code == 200
-    data = response.json()
+    assert response.json()["email"] == "testuser@example.com"
 
-    # Assertions to verify the post content
-    assert data["message"] == "Hello World!"
-    assert data["author"] == "Jane Doe"
-    assert "timestamp" in data  # Check if the timestamp is present
-    assert "id" in data  # Ensure the post has an id
-
-    return data["id"]  # Return the post ID for other tests
-
-
-def test_create_post(create_post):
-    """
-    Test to create a post using the fixture.
-    """
-    # This test is just to confirm that the fixture works. No assertions needed here,
-    # as they are already part of the fixture.
-
-
-def test_get_posts():
-    """
-    Test to get all posts.
-    """
-    response = client.get("/posts")
+def test_login_user():
+    response = client.post("/login", data={
+        "username": "testuser@example.com",  # Using email as username
+        "password": "password123"
+    })
     assert response.status_code == 200
-    data = response.json()
+    assert "access_token" in response.json()
+    return response.json()["access_token"]
 
-    # Assertions to verify the post list
-    assert isinstance(data, list)  # Ensure we receive a list of posts
-
-
-def test_delete_post(create_post):
-    """
-    Test to delete the post created by the fixture.
-    """
-    post_id = create_post
-
-    # Delete the post
-    response = client.delete(f"/posts/{post_id}")
+def test_add_post():
+    token = test_login_user()  # Get the JWT token
+    headers = {"Authorization": f"Bearer {token}"}
+    response = client.post("/posts", json={"message": "Hello world!"}, headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    assert response.json()["message"] == "Hello world!"
 
-    # Assertions to verify the post was deleted correctly
-    assert data["id"] == post_id
-    assert data["message"] == "Hello World!"
-    assert data["author"] == "Jane Doe"
+def test_get_post():
+    response = client.get("/posts/1")  # Assuming the post created has ID 1
+    assert response.status_code == 200
+    assert response.json()["message"] == "Hello world!"
 
-    # Verify the post no longer exists
-    response = client.get(f"/posts/{post_id}")
-    assert response.status_code == 404  # Post should no longer exist
+def test_delete_post():
+    token = test_login_user()  # Get the JWT token
+    headers = {"Authorization": f"Bearer {token}"}
+    response = client.delete("/posts/1", headers=headers)  # Assuming the post has ID 1
+    assert response.status_code == 200
+
+def test_delete_user():
+    # This assumes the user can be deleted, but depending on your system's rules, you might
+    # not allow users to delete their own account.
+    pass

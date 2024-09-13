@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.schemas.post import Post, PostCreate
 from app.crud.post import get_posts, get_post_by_id, create_post, delete_post
 from app.core.database import get_db
+from app.core.jwt import get_current_user
 
 router = APIRouter()
 
@@ -45,7 +46,9 @@ def fetch_post(post_id: int, db: Session = Depends(get_db)):
     return post
 
 @router.post("/posts", response_model=Post)
-def add_post(post: PostCreate, db: Session = Depends(get_db)):
+def add_post(post: PostCreate, 
+             db: Session = Depends(get_db),
+             current_user: dict = Depends(get_current_user)):
     """
     Create a new post and store it in the database.
 
@@ -56,10 +59,10 @@ def add_post(post: PostCreate, db: Session = Depends(get_db)):
     Returns:
         Post: The newly created post.
     """
-    return create_post(db, post.message, post.author)
+    return create_post(db, post.message, current_user['sub'])
 
 @router.delete("/posts/{post_id}", response_model=Post)
-def remove_post(post_id: int, db: Session = Depends(get_db)):
+def remove_post(post_id: int, db: Session = Depends(get_db)): # TODO: add authorization
     """
     Delete a post by its ID from the database.
 
