@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.schemas.tag import Tag, TagCreate, TagUpdate
-from app.crud.tag import get_tags, get_hashtag_by_id, create_tag, delete_tag, update_tag_count
+from app.crud.tag import get_hashtags, create_tag, delete_tag, update_tag_count, get_hashtag_by_name
 from app.core.database import get_db
 
 router = APIRouter()
@@ -22,15 +22,15 @@ def fetch_tags(skip: int = Query(0, ge=0),
     Returns:
         List[Tag]: A list of tags.
     """
-    return get_tags(db, skip=skip, limit=limit)
+    return get_hashtags(db, skip=skip, limit=limit)
 
-@router.get("/tags/{hashtag_id}", response_model=Tag)
-def fetch_tag(hashtag_id: int, db: Session = Depends(get_db)):
+@router.get("/tags/{hashtag_name}", response_model=Tag)
+def fetch_tag(hashtag_name: str, db: Session = Depends(get_db)):
     """
     Fetch a specific tag by its ID.
 
     Args:
-        hashtag_id (int): The ID of the tag to retrieve.
+        hashtag_name (str): The ID of the tag to retrieve.
         db (Session): The database session.
 
     Returns:
@@ -39,12 +39,12 @@ def fetch_tag(hashtag_id: int, db: Session = Depends(get_db)):
     Raises:
         HTTPException: If the tag with the specified ID is not found.
     """
-    tag = get_hashtag_by_id(db, hashtag_id)
+    tag = get_hashtag_by_name(db, hashtag_name)
     if not tag:
         raise HTTPException(status_code=404, detail="Tag not found")
     return tag
 
-@router.post("/tags", response_model=Tag)
+@router.post("/tags", response_model=TagCreate)
 def add_tag(tag: TagCreate, db: Session = Depends(get_db)):
     """
     Create a new tag and store it in the database.
@@ -78,7 +78,7 @@ def remove_tag(hashtag_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Tag not found")
     return tag
 
-@router.put("/tags/{hashtag_id}", response_model=Tag)
+@router.put("/tags/{hashtag_id}/increment", response_model=TagUpdate)
 def update_tag_count_route(hashtag_id: int, tag_update: TagUpdate, db: Session = Depends(get_db)):
     """
     Update the count of a specific tag (e.g. increment the count).
@@ -94,7 +94,7 @@ def update_tag_count_route(hashtag_id: int, tag_update: TagUpdate, db: Session =
     Raises:
         HTTPException: If the tag with the specified ID is not found.
     """
-    tag = update_tag_count(db, hashtag_id, increment=tag_update.increment)
+    tag = update_tag_count(db, hashtag_id, increment=tag_update.increment_by)
     if not tag:
         raise HTTPException(status_code=404, detail="Tag not found")
     return tag
