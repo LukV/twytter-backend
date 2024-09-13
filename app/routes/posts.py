@@ -1,6 +1,6 @@
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
 from app.schemas.post import Post, PostCreate
 from app.crud.post import get_posts, get_post_by_id, create_post, delete_post
 from app.core.database import get_db
@@ -8,8 +8,8 @@ from app.core.database import get_db
 router = APIRouter()
 
 @router.get("/posts", response_model=List[Post])
-def fetch_posts(skip: int = Query(0, ge=0), 
-                limit: int = Query(10, ge=1), 
+def fetch_posts(skip: int = Query(0, ge=0),
+                limit: int = Query(100, ge=1),
                 db: Session = Depends(get_db)):
     """
     Fetch posts with pagination.

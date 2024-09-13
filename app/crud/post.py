@@ -1,8 +1,8 @@
 """CRUD functions to interact with the database"""
 from sqlalchemy.orm import Session
-from app.models.post import PostDB
+from app.models.dbmodel import PostDB
 
-def get_posts(db: Session, skip: int = 0, limit: int = 10):
+def get_posts(db: Session, skip: int = 0, limit: int = 100):
     """Fetch posts from the database with pagination."""
     return db.query(PostDB).offset(skip).limit(limit).all()
 

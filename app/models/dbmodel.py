@@ -10,3 +10,12 @@ class PostDB(Base):
     message = Column(String, index=True)
     author = Column(String, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+class HashtagDB(Base):
+    __tablename__ = "hashtags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    hashtag = Column(String, index=True)
+    count = Column(Integer)
+    author = Column(String, index=True)
+    lastupdated = Column(DateTime, default=lambda: datetime.now(timezone.utc))
